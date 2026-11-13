@@ -14,6 +14,7 @@ class UnsafePathError(ValueError):
 RESERVED_NAMES = frozenset(
     {
         ".tidyfolder-undo.json",
+        ".tidyfolder-dupes-undo.json",
         "tidyfolder.toml",
         ".tidyfolder.toml",
     }

@@ -91,3 +91,47 @@ def format_undo(result: "UndoResult") -> str:
     if result.dry_run and result.restored:
         lines.append("Dry run only. Re-run without --dry-run to apply this undo.")
     return "\n".join(lines)
+
+
+
+def format_dupes(result: "DuplicateResult") -> str:
+    """Return a multi-line report of duplicate groups and optional moves."""
+    lines: List[str] = []
+    if not result.groups:
+        return f"No duplicates found. Scanned {result.scanned} file(s)."
+
+    lines.append(
+        f"Found {len(result.groups)} duplicate group(s) "
+        f"in {result.scanned} file(s):"
+    )
+    lines.append("")
+    for index, group in enumerate(result.groups, start=1):
+        extra_count = len(group.extras)
+        size = group.size
+        if size >= 1024 * 1024:
+            size_label = f"{size / (1024 * 1024):.1f} MiB"
+        elif size >= 1024:
+            size_label = f"{size / 1024:.1f} KiB"
+        else:
+            size_label = f"{size} bytes"
+        empty = " (empty file)" if size == 0 else ""
+        lines.append(
+            f"Group {index}: {extra_count + 1} copies, {size_label}{empty}, "
+            f"sha256={group.sha256[:12]}..."
+        )
+        lines.append(f"  keep   {relative_to_root(group.files[0], result.root)}")
+        for extra in group.extras:
+            lines.append(f"  extra  {relative_to_root(extra, result.root)}")
+        lines.append("")
+
+    wasted = sum(group.size * len(group.extras) for group in result.groups)
+    lines.append(f"Wasted space: {wasted} byte(s) in extra copies.")
+
+    if result.moves:
+        verb = "Would move" if result.dry_run else "Moved"
+        dest = relative_to_root(result.move_to, result.root) if result.move_to else "Duplicates"
+        lines.append("")
+        lines.append(f"{verb} {len(result.moves)} extra copy(ies) to {dest}/.")
+        if result.dry_run:
+            lines.append("Dry run only. Re-run without --dry-run to apply these moves.")
+    return "\n".join(lines)
