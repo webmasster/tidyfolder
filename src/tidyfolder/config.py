@@ -11,7 +11,7 @@ from tidyfolder.categories import DEFAULT_CATEGORIES, DEFAULT_OTHER_FOLDER
 
 if sys.version_info >= (3, 11):
     import tomllib
-else:  # Python 3.9 and 3.10
+else:  # Python 3.10
     import tomli as tomllib
 
 

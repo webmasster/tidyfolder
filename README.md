@@ -15,9 +15,9 @@ tidyfolder does that job in a way that is easy to review and easy to reverse.
 
 ## Requirements
 
-- Python 3.9 or newer
+- Python 3.10 or newer
 - A terminal (Windows, macOS, or Linux)
-- No required third-party packages on Python 3.11+ (Python 3.9 and 3.10 need
+- No required third-party packages on Python 3.11+ (Python 3.10 needs
   `tomli`, which is installed automatically)
 
 ## Install

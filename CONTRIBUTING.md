@@ -6,7 +6,7 @@ safe, predictable, and easy to read.
 
 ## Development setup
 
-Python 3.9 or newer is required.
+Python 3.10 or newer is required.
 
 ```bash
 git clone https://github.com/webmasster/tidyfolder.git
@@ -30,7 +30,7 @@ temporary directories and must not touch files outside of those directories.
 ## Project guidelines
 
 - Keep the default install on the Python standard library. The only allowed
-  runtime dependency is `tomli`, and only on Python 3.9 and 3.10.
+  runtime dependency is `tomli`, and only on Python 3.10.
 - Public functions should have type hints and a short docstring.
 - Never overwrite or delete user files. If a destination name is taken, choose
   a numbered suffix instead.
