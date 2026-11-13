@@ -8,6 +8,14 @@ from pathlib import Path
 from typing import Optional, Sequence
 
 from tidyfolder import __version__
+from tidyfolder.config import (
+    ConfigError,
+    Settings,
+    default_settings,
+    discover_config,
+    load_settings,
+    merge_cli,
+)
 from tidyfolder.organizer import organize, plan_moves
 from tidyfolder.report import format_plan, format_undo
 from tidyfolder.safety import UnsafePathError, resolve_target
@@ -49,17 +57,20 @@ def build_parser() -> argparse.ArgumentParser:
     )
     organize_cmd.add_argument(
         "--by-date",
-        action="store_true",
+        action=argparse.BooleanOptionalAction,
+        default=None,
         help="Also group files into YYYY-MM folders by modification time.",
     )
     organize_cmd.add_argument(
         "--recursive",
-        action="store_true",
+        action=argparse.BooleanOptionalAction,
+        default=None,
         help="Include files in subfolders, not only the top level.",
     )
     organize_cmd.add_argument(
         "--include-hidden",
-        action="store_true",
+        action=argparse.BooleanOptionalAction,
+        default=None,
         help="Include hidden files and files inside hidden folders.",
     )
     organize_cmd.add_argument(
@@ -68,6 +79,11 @@ def build_parser() -> argparse.ArgumentParser:
         default=[],
         metavar="GLOB",
         help="Skip files matching this glob. May be repeated.",
+    )
+    organize_cmd.add_argument(
+        "--config",
+        metavar="PATH",
+        help="TOML config file. Overrides the usual search path.",
     )
     organize_cmd.add_argument(
         "--force",
@@ -110,7 +126,29 @@ def build_parser() -> argparse.ArgumentParser:
         help="Restore files even if their contents have changed.",
     )
 
+    categories = sub.add_parser(
+        "categories",
+        help="List the category names and extensions that would be used.",
+    )
+    categories.add_argument(
+        "path",
+        nargs="?",
+        default=".",
+        help="Folder used to discover a local tidyfolder.toml (default: .).",
+    )
+    categories.add_argument(
+        "--config",
+        metavar="PATH",
+        help="TOML config file. Overrides the usual search path.",
+    )
+
     return parser
+
+
+def _load_for(root: Path, explicit_config: Optional[str]) -> Settings:
+    explicit = Path(explicit_config) if explicit_config else None
+    found = discover_config(root, explicit)
+    return load_settings(found) if found else default_settings()
 
 
 def _print_result(result, *, verbose: bool) -> None:
@@ -123,26 +161,32 @@ def _print_result(result, *, verbose: bool) -> None:
 def _run_organize(args: argparse.Namespace) -> int:
     root = Path(args.path)
     try:
+        # Resolve only for config discovery; organizer will resolve again
+        # and apply safety checks.
+        search_root = root.expanduser()
+        if search_root.exists() and search_root.is_dir():
+            search_root = search_root.resolve()
+        settings = merge_cli(
+            _load_for(search_root, args.config),
+            by_date=args.by_date,
+            include_hidden=args.include_hidden,
+            recursive=args.recursive,
+        )
+        kwargs = dict(
+            recursive=settings.recursive,
+            include_hidden=settings.include_hidden,
+            by_date=settings.by_date,
+            excludes=args.exclude or None,
+            categories=settings.categories,
+            other_folder=settings.other_folder,
+            force=args.force,
+        )
         if args.dry_run:
-            result = plan_moves(
-                root,
-                recursive=args.recursive,
-                include_hidden=args.include_hidden,
-                by_date=args.by_date,
-                excludes=args.exclude or None,
-                force=args.force,
-            )
+            result = plan_moves(root, **kwargs)
             result.dry_run = True
         else:
-            result = organize(
-                root,
-                recursive=args.recursive,
-                include_hidden=args.include_hidden,
-                by_date=args.by_date,
-                excludes=args.exclude or None,
-                force=args.force,
-            )
-    except UnsafePathError as exc:
+            result = organize(root, **kwargs)
+    except (UnsafePathError, ConfigError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
     except OSError as exc:
@@ -150,10 +194,15 @@ def _run_organize(args: argparse.Namespace) -> int:
         return 1
 
     _print_result(result, verbose=args.verbose)
+    if settings.config_path:
+        print(f"Using config: {settings.config_path}")
     if not args.dry_run and result.moves:
         log_path = Path(args.undo_log) if args.undo_log else default_log_path(result.root)
         write_log(build_log(result.root, result.moves), log_path)
-        print(f"Undo log written to {log_path}. Run 'tidyfolder undo {result.root}' to revert.")
+        print(
+            f"Undo log written to {log_path}. "
+            f"Run 'tidyfolder undo {result.root}' to revert."
+        )
     return 0
 
 
@@ -182,6 +231,30 @@ def _run_undo(args: argparse.Namespace) -> int:
     return 0 if not result.skipped else 1
 
 
+def _run_categories(args: argparse.Namespace) -> int:
+    root = Path(args.path)
+    try:
+        search_root = root.expanduser()
+        if search_root.exists() and search_root.is_dir():
+            search_root = search_root.resolve()
+        settings = _load_for(search_root, args.config)
+    except ConfigError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+
+    if settings.config_path:
+        print(f"Using config: {settings.config_path}")
+    else:
+        print("Using built-in categories.")
+    print(f"Other folder: {settings.other_folder}")
+    print()
+    width = max(len(name) for name in settings.categories) if settings.categories else 0
+    for name in settings.categories:
+        exts = ", ".join(settings.categories[name])
+        print(f"  {name:<{width}}  {exts}")
+    return 0
+
+
 def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -190,6 +263,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         return _run_organize(args)
     if args.command == "undo":
         return _run_undo(args)
+    if args.command == "categories":
+        return _run_categories(args)
 
     parser.error(f"unknown command: {args.command}")
     return 2

@@ -1,0 +1,18 @@
+# Copy this file to tidyfolder.toml in the folder you want to organize,
+# or to ~/.config/tidyfolder/config.toml to use it everywhere.
+# CLI flags such as --by-date / --no-by-date always win over this file.
+
+[general]
+by_date = false
+include_hidden = false
+recursive = false
+other_folder = "Other"
+
+# Any category listed here replaces the built-in extension list for that
+# name. New names are added. An empty extensions list removes a category.
+
+# [categories.Images]
+# extensions = [".jpg", ".jpeg", ".png", ".gif", ".webp", ".heic"]
+
+# [categories.Design]
+# extensions = [".psd", ".ai", ".fig", ".sketch"]
