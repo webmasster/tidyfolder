@@ -9,7 +9,7 @@ safe, predictable, and easy to read.
 Python 3.9 or newer is required.
 
 ```bash
-git clone https://github.com/<your-username>/tidyfolder.git
+git clone https://github.com/webmasster/tidyfolder.git
 cd tidyfolder
 python -m venv .venv
 # Windows: .venv\Scripts\activate

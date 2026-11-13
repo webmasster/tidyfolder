@@ -37,7 +37,7 @@ python -m pip install -e ".[dev]"
 Once the project is on GitHub, you can also install it directly from git:
 
 ```bash
-python -m pip install "git+https://github.com/<your-username>/tidyfolder.git"
+python -m pip install "git+https://github.com/webmasster/tidyfolder.git"
 ```
 
 Check that the command is available:
