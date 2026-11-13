@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from pathlib import Path
-from typing import Iterable, List, Sequence, Tuple
+from typing import List, Optional, Sequence, Tuple
 
 from tidyfolder.organizer import OrganizeResult, PlannedMove
 
@@ -28,7 +28,7 @@ def group_by_category(moves: Sequence[PlannedMove]) -> List[Tuple[str, List[Plan
     return [(name, grouped[name]) for name in order]
 
 
-def format_plan(result: OrganizeResult, *, verb: str | None = None) -> str:
+def format_plan(result: OrganizeResult, *, verb: Optional[str] = None) -> str:
     """Return a multi-line preview of planned or applied moves.
 
     ``verb`` defaults to ``Would move`` for dry runs and ``Moved`` otherwise.
@@ -59,4 +59,35 @@ def format_plan(result: OrganizeResult, *, verb: str | None = None) -> str:
         lines.append(f"Skipped {result.skipped} file(s) already in place.")
     if result.dry_run and result.moves:
         lines.append("Dry run only. Re-run without --dry-run to apply these moves.")
+    return "\n".join(lines)
+
+
+def format_undo(result: "UndoResult") -> str:
+    """Return a multi-line preview of an undo run."""
+    verb = "Would restore" if result.dry_run else "Restored"
+    heading = "Planned undo (dry run):" if result.dry_run else "Undo applied:"
+    lines: List[str] = []
+
+    if not result.restored and not result.skipped:
+        return "Nothing to undo. The undo log has no recorded moves."
+
+    if result.restored:
+        lines.append(heading)
+        lines.append("")
+        width = max(
+            len(relative_to_root(item.destination, result.root))
+            for item in result.restored
+        )
+        for item in result.restored:
+            src = relative_to_root(item.destination, result.root)
+            dest = relative_to_root(item.source, result.root)
+            lines.append(f"  {src:<{width}}  ->  {dest}")
+        lines.append("")
+        lines.append(f"{verb} {len(result.restored)} file(s).")
+
+    for warning in result.skipped:
+        lines.append(f"Skipped: {warning}")
+
+    if result.dry_run and result.restored:
+        lines.append("Dry run only. Re-run without --dry-run to apply this undo.")
     return "\n".join(lines)

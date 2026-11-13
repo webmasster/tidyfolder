@@ -9,8 +9,16 @@ from typing import Optional, Sequence
 
 from tidyfolder import __version__
 from tidyfolder.organizer import organize, plan_moves
-from tidyfolder.report import format_plan
-from tidyfolder.safety import UnsafePathError
+from tidyfolder.report import format_plan, format_undo
+from tidyfolder.safety import UnsafePathError, resolve_target
+from tidyfolder.undo import (
+    UndoError,
+    apply_undo,
+    build_log,
+    default_log_path,
+    load_log,
+    write_log,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -67,6 +75,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="Allow organizing the home directory or other protected paths.",
     )
     organize_cmd.add_argument(
+        "--undo-log",
+        metavar="PATH",
+        help=(
+            "Where to write the undo log. Defaults to "
+            ".tidyfolder-undo.json inside the folder."
+        ),
+    )
+    organize_cmd.add_argument(
         "-v",
         "--verbose",
         action="store_true",
@@ -79,6 +95,19 @@ def build_parser() -> argparse.ArgumentParser:
         "--dry-run",
         action="store_true",
         help="Preview planned reversals without changing anything.",
+    )
+    undo.add_argument(
+        "--log",
+        metavar="PATH",
+        help=(
+            "Undo log to read. Defaults to .tidyfolder-undo.json "
+            "inside the folder."
+        ),
+    )
+    undo.add_argument(
+        "--force",
+        action="store_true",
+        help="Restore files even if their contents have changed.",
     )
 
     return parser
@@ -121,7 +150,36 @@ def _run_organize(args: argparse.Namespace) -> int:
         return 1
 
     _print_result(result, verbose=args.verbose)
+    if not args.dry_run and result.moves:
+        log_path = Path(args.undo_log) if args.undo_log else default_log_path(result.root)
+        write_log(build_log(result.root, result.moves), log_path)
+        print(f"Undo log written to {log_path}. Run 'tidyfolder undo {result.root}' to revert.")
     return 0
+
+
+def _run_undo(args: argparse.Namespace) -> int:
+    try:
+        root = resolve_target(Path(args.path))
+    except Exception as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    log_path = Path(args.log) if args.log else default_log_path(root)
+    try:
+        log = load_log(log_path)
+        result = apply_undo(
+            log,
+            dry_run=args.dry_run,
+            force=args.force,
+            log_path=log_path,
+        )
+    except UndoError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    except OSError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    print(format_undo(result))
+    return 0 if not result.skipped else 1
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
@@ -131,12 +189,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     if args.command == "organize":
         return _run_organize(args)
     if args.command == "undo":
-        print(
-            f"undo is not implemented yet (path={args.path!r}, "
-            f"dry_run={args.dry_run}).",
-            file=sys.stderr,
-        )
-        return 2
+        return _run_undo(args)
 
     parser.error(f"unknown command: {args.command}")
     return 2
