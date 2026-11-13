@@ -9,6 +9,7 @@ from typing import Optional, Sequence
 
 from tidyfolder import __version__
 from tidyfolder.organizer import organize, plan_moves
+from tidyfolder.report import format_plan
 from tidyfolder.safety import UnsafePathError
 
 
@@ -83,17 +84,11 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _print_moves(moves, *, dry_run: bool, verbose: bool) -> None:
-    if not moves:
-        print("Nothing to do. The folder is already organized, or it is empty.")
-        return
-    label = "Would move" if dry_run else "Moved"
-    # Always print a short summary; list each file when verbose or few moves.
-    show_each = verbose or len(moves) <= 20
-    if show_each:
-        for move in moves:
-            print(f"{label}: {move.source.name}  ->  {move.destination}")
-    print(f"{label} {len(moves)} file(s).")
+def _print_result(result, *, verbose: bool) -> None:
+    # format_plan already lists every move; --verbose is reserved for later
+    # commands that hide detail by default.
+    del verbose
+    print(format_plan(result))
 
 
 def _run_organize(args: argparse.Namespace) -> int:
@@ -125,11 +120,7 @@ def _run_organize(args: argparse.Namespace) -> int:
         print(f"error: {exc}", file=sys.stderr)
         return 1
 
-    _print_moves(result.moves, dry_run=args.dry_run, verbose=args.verbose)
-    if result.skipped:
-        print(f"Skipped {result.skipped} file(s) already in place.")
-    if args.dry_run and result.moves:
-        print("Dry run only. Re-run without --dry-run to apply these moves.")
+    _print_result(result, verbose=args.verbose)
     return 0
 
 
