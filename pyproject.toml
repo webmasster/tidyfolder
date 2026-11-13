@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tidyfolder"
+version = "0.1.0"
+description = "Safely organize a messy folder into subfolders by file type and date, with dry-run, undo, and duplicate detection."
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [
+    { name = "Mohammadreza Safari", email = "smohammadrezaza@gmail.com" },
+]
+requires-python = ">=3.9"
+dependencies = [
+    "tomli>=2.0.0; python_version < '3.11'",
+]
+keywords = ["cli", "organize", "files", "downloads", "cleanup", "duplicates"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: System :: Filesystems",
+    "Topic :: Utilities",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0"]
+
+[project.scripts]
+tidyfolder = "tidyfolder.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/smohammadrezaza/tidyfolder"
+Issues = "https://github.com/smohammadrezaza/tidyfolder/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
